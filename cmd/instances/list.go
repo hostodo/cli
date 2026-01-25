@@ -2,6 +2,7 @@ package instances
 
 import (
 	"fmt"
+	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/hostodo/hostodo-cli/pkg/api"
@@ -110,5 +111,5 @@ func runList(cmd *cobra.Command, args []string) {
 
 func exitWithError(msg string, args ...interface{}) {
 	fmt.Printf("Error: "+msg+"\n", args...)
-	return
+	os.Exit(1)
 }
