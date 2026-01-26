@@ -98,6 +98,13 @@ func runLogin(cmd *cobra.Command, args []string) {
 	// Create OAuth client
 	oauthClient := auth.NewDeviceFlowClient(cfg.APIURL)
 
+	// Get or create device ID
+	deviceID, err := config.GetOrCreateDeviceID(cfg)
+	if err != nil {
+		fmt.Println(errorStyle.Render("Error: ") + "Failed to get device ID: " + err.Error())
+		os.Exit(1)
+	}
+
 	// Get device name
 	deviceName := auth.GetDeviceName()
 
@@ -105,8 +112,8 @@ func runLogin(cmd *cobra.Command, args []string) {
 	fmt.Println(titleStyle.Render("Hostodo CLI Authentication"))
 	fmt.Println()
 
-	// Initiate device flow
-	deviceCode, err := oauthClient.InitiateDeviceFlow(deviceName)
+	// Initiate device flow (with device ID)
+	deviceCode, err := oauthClient.InitiateDeviceFlow(deviceName, deviceID)
 	if err != nil {
 		fmt.Println(errorStyle.Render("Error: ") + "Failed to start authentication: " + err.Error())
 		os.Exit(1)

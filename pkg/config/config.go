@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/google/uuid"
 )
 
 const (
@@ -14,7 +16,8 @@ const (
 
 // Config represents the CLI configuration
 type Config struct {
-	APIURL string `json:"api_url"`
+	APIURL   string `json:"api_url"`
+	DeviceID string `json:"device_id"` // Persistent UUID for device identification
 }
 
 // GetConfigPath returns the full path to the config file
@@ -134,5 +137,24 @@ func GetDefaultConfig() *Config {
 	return &Config{
 		APIURL: GetDefaultAPIURL(),
 	}
+}
+
+// GetOrCreateDeviceID returns the device ID from config, or generates and saves a new one
+func GetOrCreateDeviceID(config *Config) (string, error) {
+	// If device ID already exists, return it
+	if config.DeviceID != "" {
+		return config.DeviceID, nil
+	}
+
+	// Generate new UUID
+	deviceID := uuid.New().String()
+	config.DeviceID = deviceID
+
+	// Save config with new device ID
+	if err := Save(config); err != nil {
+		return "", fmt.Errorf("failed to save device ID: %w", err)
+	}
+
+	return deviceID, nil
 }
 
