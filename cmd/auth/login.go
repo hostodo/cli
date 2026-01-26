@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -130,6 +131,11 @@ func runLogin(cmd *cobra.Command, args []string) {
 		fmt.Println(warningStyle.Render("  ⚠") + " Could not copy to clipboard")
 	}
 
+	// Wait for user confirmation before opening browser
+	fmt.Println()
+	fmt.Print("  Press Enter to open browser (or Ctrl+C to cancel)...")
+	bufio.NewReader(os.Stdin).ReadString('\n')
+
 	// Open browser (with code in URL)
 	if err := browser.OpenURL(verificationURL); err != nil {
 		fmt.Println(warningStyle.Render("  ⚠") + " Could not open browser automatically")
@@ -198,10 +204,17 @@ func displayUserCode(userCode string) {
 	// Create ASCII art
 	fig := figure.NewColorFigure(formatted, "standard", "green", true)
 
+	// Italic style for copy-pastable version
+	italicStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#888888")).
+		Italic(true)
+
 	fmt.Println()
 	fmt.Println("  Enter this code in your browser:")
 	fmt.Println()
 	fig.Print()
+	fmt.Println()
+	fmt.Println("  " + italicStyle.Render("("+formatted+")"))
 }
 
 // formatCodeWithDash formats the 8-char code as XXXX-XXXX
