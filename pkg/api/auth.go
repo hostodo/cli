@@ -29,18 +29,9 @@ func (c *Client) RevokeSession() error {
 }
 
 // GetCurrentUser retrieves the authenticated user's information
+// Uses the same endpoint as ValidateSession
 func (c *Client) GetCurrentUser() (*User, error) {
-	resp, err := c.Get("/client/user/")
-	if err != nil {
-		return nil, err
-	}
-
-	var user User
-	if err := parseResponse(resp, &user); err != nil {
-		return nil, err
-	}
-
-	return &user, nil
+	return c.ValidateSession()
 }
 
 // ValidateSession checks if the current session is valid
