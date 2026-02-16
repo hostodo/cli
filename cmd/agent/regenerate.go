@@ -64,7 +64,7 @@ func runRegenerate(cmd *cobra.Command, args []string) error {
 	tokens, err := client.GetAgentTokens()
 	hasExistingToken := false
 	if err == nil {
-		for _, t := range tokens.Results {
+		for _, t := range tokens {
 			if t.InstanceID == instanceID && t.Status == "active" {
 				hasExistingToken = true
 				break

@@ -82,20 +82,20 @@ func runStatus(cmd *cobra.Command, args []string) {
 }
 
 func listAllTokens(client *api.Client) {
-	tokensResp, err := client.GetAgentTokens()
+	tokens, err := client.GetAgentTokens()
 	if err != nil {
 		fmt.Printf("Error: Failed to fetch agent tokens: %v\n", err)
 		os.Exit(1)
 	}
 
-	if len(tokensResp.Results) == 0 {
+	if len(tokens) == 0 {
 		fmt.Println(infoStyle.Render("No agent tokens found."))
 		fmt.Println(infoStyle.Render("\nAgent tokens are created when you deploy instances with AI agent enabled."))
 		return
 	}
 
 	if jsonOutput {
-		output, err := json.MarshalIndent(tokensResp.Results, "", "  ")
+		output, err := json.MarshalIndent(tokens, "", "  ")
 		if err != nil {
 			fmt.Printf("Error: Failed to format JSON: %v\n", err)
 			os.Exit(1)
@@ -110,9 +110,9 @@ func listAllTokens(client *api.Client) {
 	fmt.Println()
 
 	// Print table
-	output := formatTokensTable(tokensResp.Results)
+	output := formatTokensTable(tokens)
 	fmt.Println(output)
-	fmt.Printf("\nTotal: %d token(s)\n", tokensResp.Count)
+	fmt.Printf("\nTotal: %d token(s)\n", len(tokens))
 }
 
 func showSingleStatus(client *api.Client, instanceID string) {
@@ -149,7 +149,7 @@ func showSingleStatus(client *api.Client, instanceID string) {
 	fmt.Printf("Status:         %s\n", statusText)
 	fmt.Printf("Created:        %s\n", formatDateTime(token.CreatedAt))
 	fmt.Printf("Last Used:      %s\n", formatLastUsed(token.LastUsedAt))
-	fmt.Printf("Usage Count:    %d\n", token.UsageCount)
+	// Usage count not yet returned by API
 }
 
 func formatTokensTable(tokens []api.AgentToken) string {

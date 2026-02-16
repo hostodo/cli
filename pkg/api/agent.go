@@ -9,46 +9,40 @@ type AgentToken struct {
 	ID           int    `json:"id"`
 	InstanceID   string `json:"instance_id"`
 	Hostname     string `json:"hostname"`
-	Status       string `json:"status"` // "active" or "revoked"
+	Status       string `json:"token_status"` // "active" or "revoked"
 	CreatedAt    string `json:"created_at"`
 	LastUsedAt   string `json:"last_used_at"`
-	UsageCount   int    `json:"usage_count"`
-}
-
-// AgentTokensResponse represents the paginated response for agent tokens
-type AgentTokensResponse struct {
-	Results []AgentToken `json:"results"`
-	Count   int          `json:"count"`
 }
 
 // AgentSettings represents account-level agent settings
 type AgentSettings struct {
 	Enabled      bool   `json:"enabled"`
 	UseOwnKey    bool   `json:"use_own_key"`
-	MonthlyLimit int    `json:"monthly_limit"`
-	TokensUsed   int    `json:"tokens_used"`
+	HasOwnKey    bool   `json:"has_own_key"`
+	MonthlyLimit int    `json:"monthly_token_limit"`
+	TokensUsed   int    `json:"tokens_used_this_month"`
 }
 
 // GetAgentTokens retrieves all agent tokens for the authenticated user
-func (c *Client) GetAgentTokens() (*AgentTokensResponse, error) {
-	path := "/client/agent-tokens/"
+func (c *Client) GetAgentTokens() ([]AgentToken, error) {
+	path := "/v1/client/agent-tokens/"
 
 	resp, err := c.Get(path)
 	if err != nil {
 		return nil, err
 	}
 
-	var tokensResp AgentTokensResponse
-	if err := parseResponse(resp, &tokensResp); err != nil {
+	var tokens []AgentToken
+	if err := parseResponse(resp, &tokens); err != nil {
 		return nil, err
 	}
 
-	return &tokensResp, nil
+	return tokens, nil
 }
 
 // GetAgentToken retrieves a specific agent token by instance ID
 func (c *Client) GetAgentToken(instanceID string) (*AgentToken, error) {
-	path := fmt.Sprintf("/client/agent-tokens/%s/", instanceID)
+	path := fmt.Sprintf("/v1/client/agent-tokens/%s/", instanceID)
 
 	resp, err := c.Get(path)
 	if err != nil {
@@ -65,7 +59,7 @@ func (c *Client) GetAgentToken(instanceID string) (*AgentToken, error) {
 
 // GetAgentSettings retrieves account-level agent settings
 func (c *Client) GetAgentSettings() (*AgentSettings, error) {
-	path := "/client/agent-settings/"
+	path := "/v1/client/agent-settings/"
 
 	resp, err := c.Get(path)
 	if err != nil {
@@ -95,7 +89,7 @@ type RegenerateTokenResponse struct {
 
 // RevokeAgentToken revokes the agent token for a specific instance
 func (c *Client) RevokeAgentToken(instanceID string) error {
-	path := fmt.Sprintf("/client/agent-tokens/%s/revoke/", instanceID)
+	path := fmt.Sprintf("/v1/client/agent-tokens/%s/revoke/", instanceID)
 
 	resp, err := c.Post(path, nil)
 	if err != nil {
@@ -111,7 +105,7 @@ func (c *Client) RevokeAgentToken(instanceID string) error {
 
 // RevokeAllAgentTokens revokes agent tokens for all instances
 func (c *Client) RevokeAllAgentTokens() (*RevokeResponse, error) {
-	path := "/client/agent-tokens/revoke-all/"
+	path := "/v1/client/agent-tokens/revoke-all/"
 
 	resp, err := c.Post(path, nil)
 	if err != nil {
@@ -128,7 +122,7 @@ func (c *Client) RevokeAllAgentTokens() (*RevokeResponse, error) {
 
 // RegenerateAgentToken regenerates an agent token, returns plaintext token
 func (c *Client) RegenerateAgentToken(instanceID string) (*RegenerateTokenResponse, error) {
-	path := fmt.Sprintf("/client/agent-tokens/%s/regenerate/", instanceID)
+	path := fmt.Sprintf("/v1/client/agent-tokens/%s/regenerate/", instanceID)
 
 	resp, err := c.Post(path, nil)
 	if err != nil {
