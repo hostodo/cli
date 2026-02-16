@@ -32,6 +32,8 @@ type Plan struct {
 	Disk         int     `json:"disk"`
 	Bandwidth    int     `json:"bandwidth"`
 	PriceMonthly string  `json:"price_monthly"`
+	Enabled      bool    `json:"enabled"`
+	OutOfStock   bool    `json:"out_of_stock"`
 }
 
 // Template represents an OS template
@@ -124,4 +126,80 @@ type ErrorResponse struct {
 	Detail  string `json:"detail"`
 	Message string `json:"message"`
 	Code    int    `json:"code"`
+}
+
+// Region represents a VPS region/location
+type Region struct {
+	ID          int    `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	OutOfStock  bool   `json:"out_of_stock"`
+}
+
+// PaymentMethod represents a saved payment method
+type PaymentMethod struct {
+	PaymentMethodID string `json:"payment_method_id"`
+	LastFour        string `json:"last_four"`
+	CardType        string `json:"card_type"`
+	CustomerDefault bool   `json:"customer_default"`
+	ExpiryMonth     int    `json:"expiry_month"`
+	ExpiryYear      int    `json:"expiry_year"`
+}
+
+// QuoteRequest represents a price quote request
+type QuoteRequest struct {
+	Plan         string `json:"plan"`
+	BillingCycle string `json:"billing_cycle"`
+	Quantity     int    `json:"quantity"`
+}
+
+// QuoteResponse represents a price quote response
+type QuoteResponse struct {
+	AmountDue string `json:"amount_due"`
+	UnitPrice string `json:"unit_price"`
+	Quantity  int    `json:"quantity"`
+}
+
+// DeployRequest represents an instance deployment request
+type DeployRequest struct {
+	Hostname        string `json:"hostname"`
+	Region          string `json:"region"`
+	Template        string `json:"template"`
+	Plan            string `json:"plan"`
+	BillingCycle    string `json:"billing_cycle"`
+	SSHKey          string `json:"ssh_key,omitempty"`
+	PaymentMethodID string `json:"payment_method_id,omitempty"`
+	Promocode       string `json:"promocode,omitempty"`
+	Quantity        int    `json:"quantity"`
+}
+
+// DeployResponse represents the response after creating a deployment order
+type DeployResponse struct {
+	Order struct {
+		OrderNumber   string `json:"order_number"`
+		Status        string `json:"status"`
+		BillingAmount string `json:"billing_amount"`
+		Hostname      string `json:"hostname"`
+	} `json:"order"`
+	Invoice struct {
+		InvoiceNumber string `json:"invoice_number"`
+		Status        string `json:"status"`
+		Subtotal      string `json:"subtotal"`
+	} `json:"invoice"`
+	CheckoutURL string `json:"checkout_url"`
+}
+
+// PlansResponse represents the paginated plans response
+type PlansResponse struct {
+	Results []Plan `json:"results"`
+}
+
+// RegionsResponse represents the paginated regions response
+type RegionsResponse struct {
+	Results []Region `json:"results"`
+}
+
+// TemplatesResponse represents the paginated templates response
+type TemplatesResponse struct {
+	Results []Template `json:"results"`
 }
