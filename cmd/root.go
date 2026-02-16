@@ -67,6 +67,9 @@ func init() {
 	rootCmd.AddCommand(statusCmd)
 	rootCmd.AddCommand(sshCmd)
 
+	// Utility commands
+	rootCmd.AddCommand(completionCmd)
+
 	// Root-level aliases for common auth commands
 	rootCmd.AddCommand(loginAliasCmd)
 	rootCmd.AddCommand(logoutAliasCmd)
