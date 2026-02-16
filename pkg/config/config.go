@@ -129,7 +129,7 @@ func GetDefaultAPIURL() string {
 		return apiURL
 	}
 	// Default to production API
-	return "https://console.hostodo.com"
+	return "https://api.hostodo.com"
 }
 
 // GetDefaultConfig returns a default configuration
