@@ -35,6 +35,9 @@ Authentication:
   hostodo logout                   # Sign out
   hostodo whoami                   # Show current user
 
+Deployment:
+  hostodo deploy                   # Deploy a new VPS instance
+
 Instance Management:
   hostodo list                     # List all your instances (aliases: ls, ps)
   hostodo status <hostname>        # Get details about an instance
@@ -58,6 +61,9 @@ func init() {
 
 	// Add subcommands
 	rootCmd.AddCommand(auth.AuthCmd)
+
+	// Deploy command
+	rootCmd.AddCommand(deployCmd)
 
 	// Root-level instance commands
 	rootCmd.AddCommand(listCmd)
