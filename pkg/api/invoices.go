@@ -4,7 +4,7 @@ import "fmt"
 
 // ListInvoices retrieves all invoices with optional status filter
 func (c *Client) ListInvoices(status string) ([]Invoice, error) {
-	path := "/billing/invoices/"
+	path := "/v1/billing/invoices/"
 	if status != "" {
 		path = fmt.Sprintf("%s?status=%s", path, status)
 	}
@@ -24,7 +24,7 @@ func (c *Client) ListInvoices(status string) ([]Invoice, error) {
 
 // PayInvoice pays an invoice using the customer's default payment method
 func (c *Client) PayInvoice(invoiceNumber string) (*PaymentResponse, error) {
-	path := fmt.Sprintf("/billing/invoices/%s/pay", invoiceNumber)
+	path := fmt.Sprintf("/v1/billing/invoices/%s/pay/", invoiceNumber)
 
 	resp, err := c.Post(path, nil)
 	if err != nil {

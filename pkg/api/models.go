@@ -1,5 +1,7 @@
 package api
 
+import "encoding/json"
+
 // LoginRequest represents the login credentials
 type LoginRequest struct {
 	Username   string `json:"username"`
@@ -32,7 +34,7 @@ type Plan struct {
 	Disk         int     `json:"disk"`
 	Bandwidth    int     `json:"bandwidth"`
 	PriceMonthly string  `json:"price_monthly"`
-	Enabled      bool    `json:"enabled"`
+	Enabled      bool    `json:"show_on_frontend"`
 	OutOfStock   bool    `json:"out_of_stock"`
 }
 
@@ -75,6 +77,7 @@ type Instance struct {
 	NextDueDate                string    `json:"next_due_date"`
 	CreatedAt                  string `json:"created_at"`
 	UpdatedAt                  string `json:"updated_at"`
+	DefaultPassword            string    `json:"default_password"`
 	ProxID                     int       `json:"prox_id"`
 	Plan                       Plan      `json:"plan"`
 	Template                   Template  `json:"template"`
@@ -146,6 +149,12 @@ type PaymentMethod struct {
 	ExpiryYear      int    `json:"expiry_year"`
 }
 
+// PaymentMethodsResponse represents the paginated payment methods response
+type PaymentMethodsResponse struct {
+	Results []PaymentMethod `json:"results"`
+	Count   int             `json:"count"`
+}
+
 // QuoteRequest represents a price quote request
 type QuoteRequest struct {
 	Plan         string `json:"plan"`
@@ -155,9 +164,9 @@ type QuoteRequest struct {
 
 // QuoteResponse represents a price quote response
 type QuoteResponse struct {
-	AmountDue string `json:"amount_due"`
-	UnitPrice string `json:"unit_price"`
-	Quantity  int    `json:"quantity"`
+	AmountDue json.Number `json:"amount_due"`
+	UnitPrice json.Number `json:"unit_price"`
+	Quantity  int         `json:"quantity"`
 }
 
 // DeployRequest represents an instance deployment request
@@ -230,6 +239,20 @@ type PaymentResponse struct {
 	BillingIntegration string `json:"billing_integration"`
 	StripeCheckoutURL  string `json:"stripe_checkout_url,omitempty"`
 	Status             string `json:"status"`
+}
+
+// EventLog represents a provisioning event
+type EventLog struct {
+	ID                 int    `json:"id"`
+	InstanceID         int    `json:"instance_id"`
+	ClientEventMessage string `json:"client_event_message"`
+	Status             string `json:"status"`
+	CreatedAt          string `json:"created_at"`
+}
+
+// EventsResponse represents the events endpoint response
+type EventsResponse struct {
+	Events []EventLog `json:"events"`
 }
 
 // SSHKey represents an SSH public key

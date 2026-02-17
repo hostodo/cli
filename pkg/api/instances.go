@@ -58,45 +58,58 @@ func (c *Client) GetInstancePowerStatus(instanceID string) (string, error) {
 		return "", err
 	}
 
-	var statusResp PowerStatusResponse
-	if err := parseResponse(resp, &statusResp); err != nil {
+	// API returns {"instance": {..., "power_status": "running"}}
+	var wrappedResp InstanceDetailResponse
+	if err := parseResponse(resp, &wrappedResp); err != nil {
 		return "", err
 	}
 
-	return statusResp.PowerStatus, nil
-}
-
-// ControlInstancePower controls the power state of an instance
-func (c *Client) ControlInstancePower(instanceID, action string) error {
-	path := fmt.Sprintf("/client/instances/%s/power/", instanceID)
-
-	powerReq := PowerControlRequest{
-		Action: action,
-	}
-
-	resp, err := c.Post(path, powerReq)
-	if err != nil {
-		return err
-	}
-
-	if err := parseResponse(resp, nil); err != nil {
-		return err
-	}
-
-	return nil
+	return wrappedResp.Instance.PowerStatus, nil
 }
 
 // StartInstance starts a stopped instance
 func (c *Client) StartInstance(instanceID string) error {
-	return c.ControlInstancePower(instanceID, "start")
+	path := fmt.Sprintf("/client/instances/%s/start/", instanceID)
+	resp, err := c.Post(path, nil)
+	if err != nil {
+		return err
+	}
+	return parseResponse(resp, nil)
 }
 
 // StopInstance stops a running instance
 func (c *Client) StopInstance(instanceID string) error {
-	return c.ControlInstancePower(instanceID, "stop")
+	path := fmt.Sprintf("/client/instances/%s/stop/", instanceID)
+	resp, err := c.Post(path, nil)
+	if err != nil {
+		return err
+	}
+	return parseResponse(resp, nil)
+}
+
+// ListInstanceEvents retrieves provisioning events for an instance
+func (c *Client) ListInstanceEvents(instanceID string) ([]EventLog, error) {
+	path := fmt.Sprintf("/client/instances/%s/events/", instanceID)
+
+	resp, err := c.Get(path)
+	if err != nil {
+		return nil, err
+	}
+
+	var eventsResp EventsResponse
+	if err := parseResponse(resp, &eventsResp); err != nil {
+		return nil, err
+	}
+
+	return eventsResp.Events, nil
 }
 
 // RebootInstance reboots an instance
 func (c *Client) RebootInstance(instanceID string) error {
-	return c.ControlInstancePower(instanceID, "reboot")
+	path := fmt.Sprintf("/client/instances/%s/reboot/", instanceID)
+	resp, err := c.Post(path, nil)
+	if err != nil {
+		return err
+	}
+	return parseResponse(resp, nil)
 }

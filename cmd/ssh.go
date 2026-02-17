@@ -23,6 +23,9 @@ The SSH command resolves the hostname, checks if the instance is running,
 auto-detects the SSH user from the instance template, and then executes
 the system ssh binary with proper passthrough.
 
+If key-based authentication fails and the instance has a default password,
+the command will automatically retry using sshpass for password authentication.
+
 This allows you to use all your existing SSH configuration (~/.ssh/config),
 agent forwarding, ProxyJump, and any other ssh features.
 
@@ -106,13 +109,12 @@ func runSSH(cmd *cobra.Command, args []string) {
 
 	// Build SSH arguments
 	sshTarget := fmt.Sprintf("%s@%s", effectiveSshUser, instance.MainIP)
-	sshArgs := []string{sshTarget}
 
-	// Scan for -- separator in os.Args
+	// Collect extra args after --
+	var extraArgs []string
 	for i, arg := range os.Args {
 		if arg == "--" {
-			// Everything after -- is passed to ssh
-			sshArgs = append(sshArgs, os.Args[i+1:]...)
+			extraArgs = os.Args[i+1:]
 			break
 		}
 	}
@@ -127,20 +129,67 @@ func runSSH(cmd *cobra.Command, args []string) {
 	// Print connecting message (to stderr to not interfere with piping)
 	fmt.Fprintf(os.Stderr, "Connecting to %s (%s) as %s...\n", instance.Hostname, instance.MainIP, effectiveSshUser)
 
-	// Execute SSH with passthrough
-	sshCmd := exec.Command(sshBinary, sshArgs...)
-	sshCmd.Stdin = os.Stdin
-	sshCmd.Stdout = os.Stdout
-	sshCmd.Stderr = os.Stderr
+	// Try SSH with key-based auth first
+	sshArgs := buildSSHArgs(sshTarget, extraArgs)
+	exitCode := runSSHCommand(sshBinary, sshArgs)
 
-	err = sshCmd.Run()
-	if err != nil {
-		// Try to get the exit code from the ssh process
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			os.Exit(exitErr.ExitCode())
-		}
-		// Fallback to generic error
-		fmt.Fprintf(os.Stderr, "Error: ssh command failed: %v\n", err)
-		os.Exit(1)
+	if exitCode == 0 {
+		return
 	}
+
+	// If SSH failed and we have a default password, retry with sshpass
+	if instance.DefaultPassword != "" {
+		sshpassBinary, err := exec.LookPath("sshpass")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "SSH key auth failed. Install sshpass to use password auth: brew install sshpass\n")
+			os.Exit(exitCode)
+		}
+
+		fmt.Fprintf(os.Stderr, "Key auth failed, retrying with instance password...\n")
+
+		// sshpass -p <password> ssh -o PubkeyAuthentication=no <target> [extra args]
+		sshpassArgs := []string{"-p", instance.DefaultPassword, sshBinary}
+		sshpassArgs = append(sshpassArgs, "-o", "PubkeyAuthentication=no")
+		sshpassArgs = append(sshpassArgs, sshTarget)
+		sshpassArgs = append(sshpassArgs, extraArgs...)
+
+		passCmd := exec.Command(sshpassBinary, sshpassArgs...)
+		passCmd.Stdin = os.Stdin
+		passCmd.Stdout = os.Stdout
+		passCmd.Stderr = os.Stderr
+
+		err = passCmd.Run()
+		if err != nil {
+			if exitErr, ok := err.(*exec.ExitError); ok {
+				os.Exit(exitErr.ExitCode())
+			}
+			fmt.Fprintf(os.Stderr, "Error: ssh command failed: %v\n", err)
+			os.Exit(1)
+		}
+		return
+	}
+
+	os.Exit(exitCode)
+}
+
+func buildSSHArgs(target string, extraArgs []string) []string {
+	args := []string{target}
+	args = append(args, extraArgs...)
+	return args
+}
+
+func runSSHCommand(binary string, args []string) int {
+	cmd := exec.Command(binary, args...)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	err := cmd.Run()
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return exitErr.ExitCode()
+		}
+		return 1
+	}
+	return 0
 }

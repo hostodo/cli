@@ -367,20 +367,15 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 		s.Stop()
 		fmt.Println(ui.SuccessStyle.Render("✓ Payment processed"))
 
-		// Stage 3 - Provisioning server
-		s = spinner.New(spinner.CharSets[14], 100*time.Millisecond)
-		s.Suffix = " Provisioning server..."
-		s.Start()
-
-		instance, err = pollForProvisioning(client, hostname, 12*time.Minute)
-		s.Stop()
+		// Stage 3 - Provisioning server with granular updates
+		instance, err = pollForProvisioningWithProgress(client, hostname, 12*time.Minute)
 
 		if err != nil {
 			fmt.Println(ui.ErrorStyle.Render("✗ Provisioning timed out"))
 			fmt.Println("Instance may still be provisioning. Check the web panel.")
 			return err
 		}
-		fmt.Println(ui.SuccessStyle.Render("✓ Server provisioned"))
+		fmt.Println(ui.SuccessStyle.Render("✓ Server online"))
 	} else {
 		// JSON mode - no progress display
 		deployResp, err = client.CreateDeployOrder(api.DeployRequest{
@@ -417,6 +412,18 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 		return encoder.Encode(output)
 	}
 
+	// Determine SSH user for display
+	sshUser := instance.Template.DefaultUsername
+	if sshUser == "" {
+		sshUser = "root"
+	}
+
+	// Determine password display
+	passwordDisplay := instance.DefaultPassword
+	if passwordDisplay == "" {
+		passwordDisplay = "(check email for password)"
+	}
+
 	// Boxed result card
 	cardContent := fmt.Sprintf(`Instance Deployed Successfully!
 
@@ -429,10 +436,10 @@ Plan:           %s
 SSH:            ssh %s@%s`,
 		instance.Hostname,
 		instance.MainIP,
-		"(check email for password)", // Password not returned in API response
+		passwordDisplay,
 		selectedRegion.Name,
 		selectedPlan.Name,
-		selectedTemplate.DefaultUsername,
+		sshUser,
 		instance.MainIP)
 
 	cardStyle := lipgloss.NewStyle().
@@ -453,8 +460,8 @@ SSH:            ssh %s@%s`,
 	}
 
 	if connectNow {
-		// Execute SSH command
-		return sshCmd.RunE(sshCmd, []string{hostname})
+		// Execute SSH command (runSSH uses Run not RunE, call directly)
+		runSSH(sshCmd, []string{hostname})
 	}
 
 	return nil
@@ -508,11 +515,21 @@ func pollForProvisioning(client *api.Client, hostname string, timeout time.Durat
 	for {
 		select {
 		case <-ticker.C:
-			instance, err := client.GetInstance(hostname)
-			if err == nil {
-				// Check if provisioned
-				if instance.Status == "provisioned" || instance.PowerStatus == "running" {
-					return instance, nil
+			// Find instance by hostname in the list
+			instancesResp, err := client.ListInstances(1000, 0)
+			if err != nil {
+				continue
+			}
+
+			for _, inst := range instancesResp.Results {
+				if inst.Hostname == hostname {
+					// Found the instance — check live power status
+					powerStatus, err := client.GetInstancePowerStatus(inst.InstanceID)
+					if err == nil && powerStatus == "running" {
+						inst.PowerStatus = powerStatus
+						return &inst, nil
+					}
+					break
 				}
 			}
 
@@ -524,5 +541,152 @@ func pollForProvisioning(client *api.Client, hostname string, timeout time.Durat
 		case <-time.After(timeout):
 			return nil, fmt.Errorf("provisioning timeout exceeded")
 		}
+	}
+}
+
+func pollForProvisioningWithProgress(client *api.Client, hostname string, timeout time.Duration) (*api.Instance, error) {
+	startTime := time.Now()
+	ticker := time.NewTicker(3 * time.Second)
+	defer ticker.Stop()
+
+	s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
+	s.Suffix = " Waiting for instance..."
+	s.Start()
+	defer s.Stop()
+
+	instanceFound := false
+	var instanceID string
+	seenEvents := make(map[int]bool)
+	ipPrinted := false
+
+	for {
+		select {
+		case <-ticker.C:
+			// Step 1: Find instance by hostname
+			if !instanceFound {
+				instancesResp, err := client.ListInstances(1000, 0)
+				if err != nil {
+					continue
+				}
+				for _, inst := range instancesResp.Results {
+					if inst.Hostname == hostname {
+						instanceFound = true
+						instanceID = inst.InstanceID
+
+						s.Stop()
+						fmt.Println(ui.SuccessStyle.Render("✓ Hostname set: " + hostname))
+
+						if inst.MainIP != "" && !ipPrinted {
+							fmt.Println(ui.SuccessStyle.Render("✓ Assigned IPv4: " + inst.MainIP))
+							ipPrinted = true
+						}
+
+						s.Suffix = " Provisioning server..."
+						s.Start()
+						break
+					}
+				}
+				if !instanceFound {
+					if time.Since(startTime) > timeout {
+						return nil, fmt.Errorf("provisioning timeout exceeded")
+					}
+					continue
+				}
+			}
+
+			// Step 2: Poll events for progress updates
+			events, err := client.ListInstanceEvents(instanceID)
+			if err == nil {
+				// Events come newest-first, reverse to print in order
+				for i := len(events) - 1; i >= 0; i-- {
+					ev := events[i]
+					if seenEvents[ev.ID] {
+						continue
+					}
+					seenEvents[ev.ID] = true
+
+					msg := mapEventMessage(ev.ClientEventMessage)
+					if msg != "" {
+						s.Stop()
+						if ev.Status == "failed" {
+							fmt.Println(ui.ErrorStyle.Render("✗ " + msg))
+						} else {
+							fmt.Println(ui.SuccessStyle.Render("✓ " + msg))
+						}
+						s.Suffix = " Provisioning server..."
+						s.Start()
+					}
+				}
+			}
+
+			// Step 3: Check if IP appeared (in case it wasn't there initially)
+			if !ipPrinted {
+				instancesResp, err := client.ListInstances(1000, 0)
+				if err == nil {
+					for _, inst := range instancesResp.Results {
+						if inst.InstanceID == instanceID && inst.MainIP != "" {
+							s.Stop()
+							fmt.Println(ui.SuccessStyle.Render("✓ Assigned IPv4: " + inst.MainIP))
+							ipPrinted = true
+							s.Suffix = " Provisioning server..."
+							s.Start()
+							break
+						}
+					}
+				}
+			}
+
+			// Step 4: Check live power status
+			powerStatus, err := client.GetInstancePowerStatus(instanceID)
+			if err == nil && powerStatus == "running" {
+				// Fetch final instance details
+				inst, err := client.GetInstance(instanceID)
+				if err != nil {
+					// Fallback: return what we can
+					return &api.Instance{
+						InstanceID:  instanceID,
+						Hostname:    hostname,
+						PowerStatus: "running",
+					}, nil
+				}
+				inst.PowerStatus = "running"
+				return inst, nil
+			}
+
+			// Check timeout
+			if time.Since(startTime) > timeout {
+				return nil, fmt.Errorf("provisioning timeout exceeded")
+			}
+
+		case <-time.After(timeout):
+			return nil, fmt.Errorf("provisioning timeout exceeded")
+		}
+	}
+}
+
+func mapEventMessage(msg string) string {
+	lower := strings.ToLower(msg)
+	switch {
+	case strings.Contains(lower, "cloning"):
+		return "Installing OS"
+	case strings.Contains(lower, "configuring instance"):
+		return "Configuring server"
+	case strings.Contains(lower, "cloud init") || strings.Contains(lower, "cloud-init"):
+		return "Configuring network"
+	case strings.Contains(lower, "password changed") || strings.Contains(lower, "root password"):
+		return "Root password set"
+	case strings.Contains(lower, "firewall"):
+		return "Configuring firewall"
+	case strings.Contains(lower, "dns"):
+		return "Setting up DNS"
+	case strings.Contains(lower, "resize") || strings.Contains(lower, "disk"):
+		return "Resizing disk"
+	case strings.Contains(lower, "instance created") || strings.Contains(lower, "started"):
+		return "Starting server"
+	default:
+		if msg != "" {
+			return msg
+		}
+		return ""
 	}
 }

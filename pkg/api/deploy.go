@@ -69,19 +69,19 @@ func (c *Client) ListTemplates() ([]Template, error) {
 
 // ListPaymentMethods retrieves all saved payment methods
 func (c *Client) ListPaymentMethods() ([]PaymentMethod, error) {
-	path := "/billing/payment-methods/"
+	path := "/v1/billing/payment-methods/"
 
 	resp, err := c.Get(path)
 	if err != nil {
 		return nil, err
 	}
 
-	var paymentMethods []PaymentMethod
-	if err := parseResponse(resp, &paymentMethods); err != nil {
+	var pmResp PaymentMethodsResponse
+	if err := parseResponse(resp, &pmResp); err != nil {
 		return nil, err
 	}
 
-	return paymentMethods, nil
+	return pmResp.Results, nil
 }
 
 // GetDefaultPaymentMethod retrieves the default payment method
