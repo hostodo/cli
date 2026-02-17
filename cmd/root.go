@@ -38,6 +38,10 @@ Authentication:
 Deployment:
   hostodo deploy                   # Deploy a new VPS instance
 
+Billing:
+  hostodo invoices                 # List your invoices
+  hostodo pay <invoice-id>         # Pay an invoice
+
 Instance Management:
   hostodo list                     # List all your instances (aliases: ls, ps)
   hostodo status <hostname>        # Get details about an instance
@@ -64,6 +68,10 @@ func init() {
 
 	// Deploy command
 	rootCmd.AddCommand(deployCmd)
+
+	// Billing commands
+	rootCmd.AddCommand(invoicesCmd)
+	rootCmd.AddCommand(payCmd)
 
 	// Root-level instance commands
 	rootCmd.AddCommand(listCmd)
