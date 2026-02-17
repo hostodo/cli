@@ -15,6 +15,7 @@ import (
 	"github.com/hostodo/hostodo-cli/pkg/config"
 	"github.com/hostodo/hostodo-cli/pkg/deploy"
 	"github.com/hostodo/hostodo-cli/pkg/ui"
+	"github.com/hostodo/hostodo-cli/pkg/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -23,6 +24,7 @@ var (
 	regionFlag   string
 	planFlag     string
 	hostnameFlag string
+	sshKeyFlag   string
 	yesFlag      bool
 	jsonFlag     bool
 )
@@ -59,6 +61,7 @@ func init() {
 	deployCmd.Flags().StringVar(&regionFlag, "region", "", "Region name (skips region prompt)")
 	deployCmd.Flags().StringVar(&planFlag, "plan", "", "Plan name (skips plan prompt)")
 	deployCmd.Flags().StringVar(&hostnameFlag, "hostname", "", "Custom hostname (skips auto-generation)")
+	deployCmd.Flags().StringVar(&sshKeyFlag, "ssh-key", "", "SSH key name to use for authentication")
 	deployCmd.Flags().BoolVarP(&yesFlag, "yes", "y", false, "Skip confirmation prompt")
 	deployCmd.Flags().BoolVar(&jsonFlag, "json", false, "JSON output mode (requires --os, --region, --plan)")
 }
@@ -218,6 +221,50 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	// SSH key selection
+	var selectedSSHKeyName string
+	if sshKeyFlag != "" {
+		// Use flag value
+		selectedSSHKeyName = sshKeyFlag
+	} else {
+		// Fetch SSH keys (non-fatal - skip on error)
+		sshKeys, err := client.ListSSHKeys()
+		if err == nil && len(sshKeys) > 0 {
+			if len(sshKeys) == 1 {
+				// Auto-select single key
+				selectedSSHKeyName = sshKeys[0].Name
+				if !jsonFlag {
+					fmt.Printf("Using SSH key: %s\n", sshKeys[0].Name)
+				}
+			} else {
+				// Multiple keys - show picker (not in JSON mode)
+				if jsonFlag {
+					return fmt.Errorf("multiple SSH keys found. Use --ssh-key flag to specify which one")
+				}
+				keyOptions := make([]string, len(sshKeys))
+				for i, key := range sshKeys {
+					fingerprint, err := utils.CalculateSSHFingerprint(key.PublicKey)
+					if err != nil {
+						fingerprint = "(error)"
+					}
+					keyOptions[i] = fmt.Sprintf("%s (%s)", key.Name, fingerprint)
+				}
+				var selectedOption string
+				prompt := &survey.Select{
+					Message:  "Choose an SSH key:",
+					Options:  keyOptions,
+					PageSize: 10,
+				}
+				if err := survey.AskOne(prompt, &selectedOption); err != nil {
+					return err
+				}
+				// Extract key name from option
+				selectedSSHKeyName = strings.Split(selectedOption, " (")[0]
+			}
+		}
+		// If no keys or error fetching, skip silently (deploy with password auth)
+	}
+
 	// Get quote
 	quote, err := client.GetQuote(api.QuoteRequest{
 		Plan:         selectedPlan.Name,
@@ -293,6 +340,7 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 			Template:     selectedTemplate.Name,
 			Plan:         selectedPlan.Name,
 			BillingCycle: "monthly",
+			SSHKey:       selectedSSHKeyName,
 			Quantity:     1,
 		})
 
@@ -341,6 +389,7 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 			Template:     selectedTemplate.Name,
 			Plan:         selectedPlan.Name,
 			BillingCycle: "monthly",
+			SSHKey:       selectedSSHKeyName,
 			Quantity:     1,
 		})
 		if err != nil {

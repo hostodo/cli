@@ -42,6 +42,11 @@ Billing:
   hostodo invoices                 # List your invoices
   hostodo pay <invoice-id>         # Pay an invoice
 
+SSH Key Management:
+  hostodo keys list                # List your SSH keys
+  hostodo keys add <name> <key>    # Add a new SSH key
+  hostodo keys remove <name>       # Remove an SSH key
+
 Instance Management:
   hostodo list                     # List all your instances (aliases: ls, ps)
   hostodo status <hostname>        # Get details about an instance
@@ -72,6 +77,9 @@ func init() {
 	// Billing commands
 	rootCmd.AddCommand(invoicesCmd)
 	rootCmd.AddCommand(payCmd)
+
+	// SSH key management
+	rootCmd.AddCommand(keysCmd)
 
 	// Root-level instance commands
 	rootCmd.AddCommand(listCmd)

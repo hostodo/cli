@@ -290,3 +290,57 @@ View details: https://console.hostodo.com/billing`,
 
 	return "\n" + receiptStyle.Render(content) + "\n"
 }
+
+// FormatSSHKeysTable formats SSH keys as an ASCII table
+func FormatSSHKeysTable(keys interface{}) string {
+	// Accept flexible type for keys - extract via reflection or type assertion
+	type KeyDisplay struct {
+		Name        string
+		Fingerprint string
+		CreatedAt   string
+	}
+
+	// Type assertion to extract keys
+	var displayKeys []KeyDisplay
+	switch v := keys.(type) {
+	case []KeyDisplay:
+		displayKeys = v
+	default:
+		return "Invalid key format"
+	}
+
+	if len(displayKeys) == 0 {
+		return "No SSH keys found"
+	}
+
+	const (
+		nameWidth        = 20
+		fingerprintWidth = 50
+		dateWidth        = 12
+	)
+
+	var sb strings.Builder
+
+	// Header
+	header := fmt.Sprintf(
+		"%-*s  %-*s  %-*s",
+		nameWidth, "NAME",
+		fingerprintWidth, "FINGERPRINT",
+		dateWidth, "DATE ADDED",
+	)
+	sb.WriteString(header + "\n")
+	sb.WriteString(strings.Repeat("-", len(header)) + "\n")
+
+	// Rows
+	for _, key := range displayKeys {
+		row := fmt.Sprintf(
+			"%-*s  %-*s  %-*s",
+			nameWidth, truncate(key.Name, nameWidth),
+			fingerprintWidth, truncate(key.Fingerprint, fingerprintWidth),
+			dateWidth, truncate(key.CreatedAt, dateWidth),
+		)
+		sb.WriteString(row + "\n")
+	}
+
+	return sb.String()
+}
