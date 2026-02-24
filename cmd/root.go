@@ -100,6 +100,7 @@ func init() {
 	// Global flags
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.hostodo/config.json)")
 	rootCmd.PersistentFlags().String("api-url", "", "API URL (default is https://console.hostodo.com or $HOSTODO_API_URL)")
+	rootCmd.PersistentFlags().MarkHidden("api-url")
 }
 
 // loginAliasCmd is a convenience alias for 'auth login'
