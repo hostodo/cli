@@ -166,7 +166,6 @@ func FormatInstanceDetail(instance *api.Instance) string {
 	// Timestamps
 	sb.WriteString(HeaderStyle.Render("Timeline") + "\n")
 	sb.WriteString(fmt.Sprintf("  Created:      %s\n", instance.CreatedAt))
-	sb.WriteString(fmt.Sprintf("  Updated:      %s\n", instance.UpdatedAt))
 
 	return sb.String()
 }

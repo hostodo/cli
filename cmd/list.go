@@ -104,9 +104,15 @@ func runList(cmd *cobra.Command, args []string) {
 		fmt.Printf("\nTotal: %d instances\n", instancesResp.Count)
 	} else {
 		// Interactive TUI (default)
-		p := tea.NewProgram(ui.NewTableModel(instancesResp.Results))
-		if _, err := p.Run(); err != nil {
+		p := tea.NewProgram(ui.NewTableModel(instancesResp.Results, client.GetInstancePowerStatus))
+		finalModel, err := p.Run()
+		if err != nil {
 			exitWithError("Failed to run interactive table: %v", err)
+		}
+		// Check if user requested SSH from detail view
+		if tm, ok := finalModel.(ui.TableModel); ok && tm.SSHHostname != "" {
+			runSSH(sshCmd, []string{tm.SSHHostname})
 		}
 	}
 }
+
