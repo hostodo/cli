@@ -245,7 +245,10 @@ func runKeysRemove(cmd *cobra.Command, args []string) error {
 
 		// Parse selection
 		var selectedIndex int
-		fmt.Sscanf(selectedOption, "%d.", &selectedIndex)
+		n, _ := fmt.Sscanf(selectedOption, "%d.", &selectedIndex)
+		if n != 1 || selectedIndex < 1 || selectedIndex > len(matchingKeys) {
+			return fmt.Errorf("invalid selection")
+		}
 		keyToDelete = &matchingKeys[selectedIndex-1]
 	} else {
 		keyToDelete = &matchingKeys[0]

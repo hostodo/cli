@@ -44,7 +44,7 @@ Examples:
   hostodo ssh mybox -- -A -v
 
 Note: Everything after -- is passed directly to the ssh binary.`,
-	Args:              cobra.ExactArgs(1),
+	Args:              cobra.MinimumNArgs(1),
 	ValidArgsFunction: resolver.CompleteHostname,
 	Run:               runSSH,
 }
@@ -111,14 +111,8 @@ func runSSH(cmd *cobra.Command, args []string) {
 	// Build SSH arguments
 	sshTarget := fmt.Sprintf("%s@%s", effectiveSshUser, instance.MainIP)
 
-	// Collect extra args after --
-	var extraArgs []string
-	for i, arg := range os.Args {
-		if arg == "--" {
-			extraArgs = os.Args[i+1:]
-			break
-		}
-	}
+	// Extra args after -- are passed to the ssh binary
+	extraArgs := args[1:]
 
 	// Find ssh binary
 	sshBinary, err := exec.LookPath("ssh")
@@ -138,8 +132,10 @@ func runSSH(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	// If SSH failed and we have a default password, retry with sshpass
-	if instance.DefaultPassword != "" {
+	// Only retry with sshpass on SSH connection/auth failure (exit code 255).
+	// Other non-zero codes (1-254) are the remote command's exit status from
+	// a session that connected successfully — don't retry those.
+	if exitCode == 255 && instance.DefaultPassword != "" {
 		sshpassBinary, err := exec.LookPath("sshpass")
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "SSH key auth failed. Instance has a default password but sshpass is not installed.\n\n")

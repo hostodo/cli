@@ -108,21 +108,40 @@ func TestFindRegion_SubstringUnique(t *testing.T) {
 }
 
 func TestFindPlan_ExactMatch(t *testing.T) {
-	plan := findPlan(testPlans, "KVM-2G")
+	plan, err := findPlan(testPlans, "KVM-2G")
+	if err != nil {
+		t.Fatalf("findPlan() error = %v", err)
+	}
 	if plan == nil || plan.Name != "KVM-2G" {
 		t.Errorf("findPlan() = %v, want KVM-2G", plan)
 	}
 }
 
 func TestFindPlan_CaseInsensitive(t *testing.T) {
-	plan := findPlan(testPlans, "kvm-2g")
+	plan, err := findPlan(testPlans, "kvm-2g")
+	if err != nil {
+		t.Fatalf("findPlan() error = %v", err)
+	}
+	if plan == nil || plan.Name != "KVM-2G" {
+		t.Errorf("findPlan() = %v, want KVM-2G", plan)
+	}
+}
+
+func TestFindPlan_SubstringMatch(t *testing.T) {
+	plan, err := findPlan(testPlans, "2G")
+	if err != nil {
+		t.Fatalf("findPlan() error = %v", err)
+	}
 	if plan == nil || plan.Name != "KVM-2G" {
 		t.Errorf("findPlan() = %v, want KVM-2G", plan)
 	}
 }
 
 func TestFindPlan_NoMatch(t *testing.T) {
-	plan := findPlan(testPlans, "KVM-8G")
+	plan, err := findPlan(testPlans, "KVM-8G")
+	if err != nil {
+		t.Fatalf("findPlan() unexpected error = %v", err)
+	}
 	if plan != nil {
 		t.Errorf("findPlan() = %v, want nil", plan)
 	}

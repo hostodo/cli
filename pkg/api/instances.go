@@ -1,7 +1,9 @@
 package api
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"time"
 )
 
@@ -30,21 +32,24 @@ func (c *Client) GetInstance(instanceID string) (*Instance, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
-	// Try to parse as wrapped response first
+	// Read body once, try both unmarshal strategies
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	// Try wrapped format first: {"instance": {...}}
 	var wrappedResp InstanceDetailResponse
-	if err := parseResponse(resp, &wrappedResp); err == nil && wrappedResp.Instance.InstanceID != "" {
+	if err := json.Unmarshal(body, &wrappedResp); err == nil && wrappedResp.Instance.InstanceID != "" {
 		return &wrappedResp.Instance, nil
 	}
 
-	// If that fails, try to parse as direct instance
+	// Try direct format: {...}
 	var instance Instance
-	resp2, err := c.Get(path)
-	if err != nil {
-		return nil, err
-	}
-	if err := parseResponse(resp2, &instance); err != nil {
-		return nil, err
+	if err := json.Unmarshal(body, &instance); err != nil {
+		return nil, fmt.Errorf("failed to parse instance response: %w", err)
 	}
 
 	return &instance, nil

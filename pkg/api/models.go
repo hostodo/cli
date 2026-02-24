@@ -77,7 +77,7 @@ type Instance struct {
 	NextDueDate              string   `json:"next_due_date"`
 	CreatedAt                string   `json:"created_at"`
 	UpdatedAt                string   `json:"updated_at"`
-	DefaultPassword          string   `json:"default_password"`
+	DefaultPassword          string   `json:"default_password,omitempty"`
 	ProxID                   int      `json:"prox_id"`
 	Plan                     Plan     `json:"plan"`
 	Template                 Template `json:"template"`

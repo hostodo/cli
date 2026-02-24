@@ -52,6 +52,15 @@ func NewClient(cfg *config.Config) (*Client, error) {
 	return client, nil
 }
 
+// doRequestWithTimeout performs an HTTP request with a custom timeout.
+// It temporarily adjusts the HTTP client timeout for this request.
+func (c *Client) doRequestWithTimeout(method, path string, body interface{}, timeout time.Duration) (*http.Response, error) {
+	origTimeout := c.HTTPClient.Timeout
+	c.HTTPClient.Timeout = timeout
+	defer func() { c.HTTPClient.Timeout = origTimeout }()
+	return c.doRequest(method, path, body)
+}
+
 // doRequest performs an HTTP request with token from keychain
 func (c *Client) doRequest(method, path string, body interface{}) (*http.Response, error) {
 	// Get token from keychain

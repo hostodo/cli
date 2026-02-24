@@ -10,9 +10,15 @@ import (
 	"github.com/hostodo/hostodo-cli/pkg/api"
 )
 
-// FormatInstancesJSON formats instances as JSON
+// FormatInstancesJSON formats instances as JSON, redacting sensitive fields
 func FormatInstancesJSON(instances []api.Instance) (string, error) {
-	data, err := json.MarshalIndent(instances, "", "  ")
+	// Redact sensitive fields before serialization
+	sanitized := make([]api.Instance, len(instances))
+	copy(sanitized, instances)
+	for i := range sanitized {
+		sanitized[i].DefaultPassword = ""
+	}
+	data, err := json.MarshalIndent(sanitized, "", "  ")
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal JSON: %w", err)
 	}

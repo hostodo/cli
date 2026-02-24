@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -154,13 +155,14 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 
 	// Build request and deploy
 	deployReq := api.DeployRequest{
-		Hostname:     hostname,
-		Region:       selectedRegion.Name,
-		Template:     selectedTemplate.Name,
-		Plan:         selectedPlan.Name,
-		BillingCycle: "monthly",
-		SSHKey:       sshKeyName,
-		Quantity:     1,
+		Hostname:        hostname,
+		Region:          selectedRegion.Name,
+		Template:        selectedTemplate.Name,
+		Plan:            selectedPlan.Name,
+		BillingCycle:    "monthly",
+		SSHKey:          sshKeyName,
+		PaymentMethodID: paymentMethod.PaymentMethodID,
+		Quantity:        1,
 	}
 
 	instance, err := executeDeploy(client, deployReq, hostname, jsonFlag)
@@ -251,7 +253,10 @@ func selectRegion(regions []api.Region, flag string, jsonMode bool) (*api.Region
 
 func selectPlan(plans []api.Plan, flag string, jsonMode bool) (*api.Plan, error) {
 	if flag != "" {
-		plan := findPlan(plans, flag)
+		plan, err := findPlan(plans, flag)
+		if err != nil {
+			return nil, err
+		}
 		if plan == nil {
 			names := make([]string, len(plans))
 			for i, p := range plans {
@@ -279,7 +284,8 @@ func selectPlan(plans []api.Plan, flag string, jsonMode bool) (*api.Plan, error)
 		return nil, err
 	}
 	planName := strings.Fields(selected)[0]
-	return findPlan(plans, planName), nil
+	plan, _ := findPlan(plans, planName)
+	return plan, nil
 }
 
 func resolveHostname(client *api.Client, flag string) (string, error) {
@@ -479,7 +485,17 @@ func promptSSHConnect(hostname string) {
 		return
 	}
 	if connectNow {
-		runSSH(sshCmd, []string{hostname})
+		// Re-exec as subprocess so os.Exit in runSSH doesn't bypass our deferred cleanup
+		binary, err := os.Executable()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			return
+		}
+		cmd := exec.Command(binary, "ssh", hostname)
+		cmd.Stdin = os.Stdin
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		cmd.Run()
 	}
 }
 
@@ -541,13 +557,32 @@ func findRegion(regions []api.Region, name string) (*api.Region, error) {
 	return nil, nil
 }
 
-func findPlan(plans []api.Plan, name string) *api.Plan {
+func findPlan(plans []api.Plan, name string) (*api.Plan, error) {
+	// Try exact match first (case-insensitive)
 	for i := range plans {
 		if strings.EqualFold(plans[i].Name, name) {
-			return &plans[i]
+			return &plans[i], nil
 		}
 	}
-	return nil
+	// Fall back to substring match — error if ambiguous
+	lowerName := strings.ToLower(name)
+	var matches []*api.Plan
+	for i := range plans {
+		if strings.Contains(strings.ToLower(plans[i].Name), lowerName) {
+			matches = append(matches, &plans[i])
+		}
+	}
+	if len(matches) == 1 {
+		return matches[0], nil
+	}
+	if len(matches) > 1 {
+		names := make([]string, len(matches))
+		for i, m := range matches {
+			names[i] = m.Name
+		}
+		return nil, fmt.Errorf("ambiguous plan '%s' — matches: %s", name, strings.Join(names, ", "))
+	}
+	return nil, nil
 }
 
 // --- Polling ---

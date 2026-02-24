@@ -80,9 +80,12 @@ func runRestart(cmd *cobra.Command, args []string) {
 	fmt.Println("  The instance is now rebooting...")
 	fmt.Print("\nWaiting for instance to restart")
 
-	// Poll for status (up to 90 seconds)
+	// Poll for status (up to 60 seconds)
+	// Proxmox reboot may not transition through "stopped" at the API level —
+	// the QEMU guest reboots internally. We wait a few seconds then accept
+	// "running" as confirmation the reboot completed.
 	sawStopped := false
-	for i := 0; i < 90; i++ {
+	for i := 0; i < 60; i++ {
 		fmt.Print(".")
 		time.Sleep(1 * time.Second)
 
@@ -90,7 +93,9 @@ func runRestart(cmd *cobra.Command, args []string) {
 		if err == nil {
 			if status == "stopped" {
 				sawStopped = true
-			} else if status == "running" && sawStopped {
+			} else if status == "running" && (sawStopped || i >= 5) {
+				// Either we saw it stop and come back, or enough time has
+				// passed that the in-place reboot has completed.
 				fmt.Println()
 				fmt.Println("✓ Instance has restarted and is now running")
 				return
