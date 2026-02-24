@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"time"
 )
 
 // ListInstances retrieves all instances for the authenticated user
@@ -108,14 +109,26 @@ func (c *Client) ListInstanceEvents(instanceID string) ([]EventLog, error) {
 	return eventsResp.Events, nil
 }
 
+// RenameInstance renames an instance by updating its hostname.
+func (c *Client) RenameInstance(instanceID, newHostname string) error {
+	path := fmt.Sprintf("/client/instances/%s/update_info/", instanceID)
+	body := map[string]string{"hostname": newHostname}
+	resp, err := c.Patch(path, body)
+	if err != nil {
+		return err
+	}
+	return parseResponse(resp, nil)
+}
+
 // RebootInstance reboots an instance. If force is true, performs an immediate reboot.
+// Uses a longer timeout since the backend performs stop+start synchronously.
 func (c *Client) RebootInstance(instanceID string, force bool) error {
 	path := fmt.Sprintf("/client/instances/%s/reboot/", instanceID)
 	var body interface{}
 	if force {
 		body = map[string]bool{"force": true}
 	}
-	resp, err := c.Post(path, body)
+	resp, err := c.doRequestWithTimeout("POST", path, body, 120*time.Second)
 	if err != nil {
 		return err
 	}

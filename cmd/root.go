@@ -88,6 +88,7 @@ func init() {
 	rootCmd.AddCommand(restartCmd)
 	rootCmd.AddCommand(statusCmd)
 	rootCmd.AddCommand(sshCmd)
+	rootCmd.AddCommand(renameCmd)
 
 	// Utility commands
 	rootCmd.AddCommand(completionCmd)
