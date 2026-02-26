@@ -1,4 +1,4 @@
-.PHONY: build install clean test release snapshot help
+.PHONY: build install clean test release snapshot release-tag help install-skill
 
 # Variables
 BINARY_NAME=hostodo
@@ -64,6 +64,9 @@ release-check: ## Check release configuration
 	@echo "Checking release configuration..."
 	@goreleaser check
 
+release-tag: ## Create next semver tag (BUMP=patch|minor|major, PUSH=1 to push, DRY=1 for preview)
+	@./scripts/release-version.sh $(BUMP) $(if $(PUSH),--push,) $(if $(DRY),--dry-run,)
+
 # Platform-specific builds
 build-linux: ## Build for Linux
 	@echo "Building for Linux..."
@@ -87,3 +90,9 @@ run: ## Run the CLI
 
 dev: ## Run in development mode (example: make dev ARGS="instances list")
 	@go run . $(ARGS)
+
+install-skill: ## Install Claude Code skill to ~/.claude/commands/
+	@mkdir -p ~/.claude/commands
+	@cp SKILL.md ~/.claude/commands/hostodo.md
+	@echo "Installed: ~/.claude/commands/hostodo.md"
+	@echo "Use /hostodo in Claude Code"
