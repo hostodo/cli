@@ -159,6 +159,14 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	// Promo code — prompt interactively if not provided via flag
+	if promoFlag == "" && !jsonFlag && !yesFlag {
+		promoFlag, err = promptPromoCode()
+		if err != nil {
+			return err
+		}
+	}
+
 	// Quote and payment
 	quote, err := client.GetQuote(api.QuoteRequest{
 		PlanID:       selectedPlan.ID,
@@ -342,6 +350,18 @@ func resolveHostname(client *api.Client, flag string) (string, error) {
 		return "", fmt.Errorf("failed to generate hostname: %w", err)
 	}
 	return hostname, nil
+}
+
+func promptPromoCode() (string, error) {
+	var code string
+	err := huh.NewInput().
+		Title("Promo code (leave blank to skip):").
+		Value(&code).
+		Run()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(code), nil
 }
 
 func selectSSHKey(client *api.Client, flag string, jsonMode bool) (string, error) {
