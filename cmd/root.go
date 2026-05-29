@@ -43,6 +43,11 @@ Billing:
   odo invoices                     # List your invoices
   odo pay <invoice-id>             # Pay an invoice
 
+Support:
+  odo tickets list                 # List support tickets
+  odo tickets open <subject>       # Open a support ticket
+  odo tickets reply <ticket-id>    # Reply to a support ticket
+
 SSH Keys:
   odo keys list                    # List your SSH keys
   odo keys add <name> <key>        # Add a new SSH key
@@ -70,6 +75,9 @@ func init() {
 	// Billing commands
 	rootCmd.AddCommand(invoicesCmd)
 	rootCmd.AddCommand(payCmd)
+
+	// Support ticket commands
+	rootCmd.AddCommand(ticketsCmd)
 
 	// SSH key management
 	rootCmd.AddCommand(keysCmd)

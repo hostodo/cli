@@ -276,3 +276,72 @@ type SSHKey struct {
 	Fingerprint string `json:"fingerprint"`
 	CreatedAt   string `json:"created_at"`
 }
+
+// Department represents a support department.
+type Department struct {
+	ID          int    `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Enabled     bool   `json:"enabled"`
+}
+
+// TicketUser is the compact user payload embedded in ticket responses.
+type TicketUser struct {
+	ID        int    `json:"id"`
+	Email     string `json:"email"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+	Role      int    `json:"role"`
+}
+
+// TicketReply represents a helpdesk ticket reply.
+type TicketReply struct {
+	ID           int        `json:"id"`
+	Content      string     `json:"content"`
+	User         TicketUser `json:"user"`
+	InternalNote bool       `json:"internal_note"`
+	IsStaffReply bool       `json:"is_staff_reply"`
+	CreatedAt    string     `json:"created_at"`
+	UpdatedAt    string     `json:"updated_at"`
+}
+
+// Ticket represents a helpdesk ticket.
+type Ticket struct {
+	ID         int           `json:"id"`
+	TicketID   string        `json:"ticket_id"`
+	Subject    string        `json:"subject"`
+	Content    string        `json:"content"`
+	Status     string        `json:"status"`
+	Priority   string        `json:"priority"`
+	Department Department    `json:"department"`
+	User       TicketUser    `json:"user"`
+	Replies    []TicketReply `json:"replies"`
+	CreatedAt  string        `json:"created_at"`
+	UpdatedAt  string        `json:"updated_at"`
+}
+
+// TicketsResponse represents the paginated tickets response.
+type TicketsResponse struct {
+	Results []Ticket `json:"results"`
+	Count   int      `json:"count"`
+}
+
+// DepartmentsResponse represents the paginated departments response.
+type DepartmentsResponse struct {
+	Results []Department `json:"results"`
+	Count   int          `json:"count"`
+}
+
+// TicketCreateRequest represents the request to open a support ticket.
+type TicketCreateRequest struct {
+	Subject      string `json:"subject"`
+	Content      string `json:"content"`
+	DepartmentID int    `json:"department_id"`
+	Priority     string `json:"priority,omitempty"`
+}
+
+// TicketReplyRequest represents the request to reply to a support ticket.
+type TicketReplyRequest struct {
+	Content      string `json:"content"`
+	InternalNote bool   `json:"internal_note,omitempty"`
+}
