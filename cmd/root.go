@@ -47,6 +47,8 @@ Support:
   odo tickets list                 # List support tickets
   odo tickets open <subject>       # Open a support ticket
   odo tickets reply <ticket-id>    # Reply to a support ticket
+  odo tickets show <ticket-id>     # Show ticket details and replies
+  odo tickets departments          # List support departments
 
 SSH Keys:
   odo keys list                    # List your SSH keys

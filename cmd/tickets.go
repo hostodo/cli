@@ -2,7 +2,9 @@ package cmd
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -19,6 +21,8 @@ var (
 	ticketPriorityFlag   string
 	ticketDepartmentFlag int
 	ticketInternalFlag   bool
+	ticketJSONFlag       bool
+	ticketSimpleFlag     bool
 )
 
 var ticketsCmd = &cobra.Command{
@@ -73,6 +77,9 @@ var ticketsShowCmd = &cobra.Command{
 func init() {
 	ticketsCmd.AddCommand(ticketsListCmd, ticketsDepartmentsCmd, ticketsOpenCmd, ticketsReplyCmd, ticketsShowCmd)
 	ticketsListCmd.Flags().StringVar(&ticketStatusFlag, "status", "", "Filter by status (open, waiting_on_staff, waiting_on_client, closed)")
+	ticketsListCmd.Flags().BoolVar(&ticketJSONFlag, "json", false, "Output as JSON")
+	ticketsListCmd.Flags().BoolVar(&ticketSimpleFlag, "simple", false, "Output as simple table")
+	ticketsDepartmentsCmd.Flags().BoolVar(&ticketJSONFlag, "json", false, "Output as JSON")
 	ticketsOpenCmd.Flags().StringVarP(&ticketMessageFlag, "message", "m", "", "Ticket message body (defaults to stdin or prompt)")
 	ticketsOpenCmd.Flags().IntVar(&ticketDepartmentFlag, "department-id", 0, "Department ID (see 'odo tickets departments')")
 	ticketsOpenCmd.Flags().StringVar(&ticketPriorityFlag, "priority", "medium", "Priority (low, medium, high, critical)")
@@ -102,7 +109,7 @@ func readBody(message string) (string, error) {
 	}
 
 	if stat, err := os.Stdin.Stat(); err == nil && (stat.Mode()&os.ModeCharDevice) == 0 {
-		data, err := os.ReadFile("/dev/stdin")
+		data, err := io.ReadAll(os.Stdin)
 		if err != nil {
 			return "", err
 		}
@@ -139,6 +146,26 @@ func runTicketsList(cmd *cobra.Command, args []string) error {
 		fmt.Println("No tickets found.")
 		return nil
 	}
+
+	if ticketJSONFlag {
+		data, err := json.MarshalIndent(tickets, "", "  ")
+		if err != nil {
+			return fmt.Errorf("failed to marshal JSON: %w", err)
+		}
+		fmt.Println(string(data))
+		return nil
+	}
+
+	if ticketSimpleFlag {
+		fmt.Printf("%-14s  %-20s  %-10s  %-10s  %s\n", "ID", "DEPARTMENT", "STATUS", "PRIORITY", "SUBJECT")
+		for _, t := range tickets {
+			fmt.Printf("%-14s  %-20s  %-10s  %-10s  %s\n",
+				displayTicketID(t), t.Department.Name, t.Status, t.Priority, t.Subject)
+		}
+		return nil
+	}
+
+	// Default: tab-separated
 	for _, t := range tickets {
 		fmt.Printf("%s\t%s\t%s\t%s\t%s\n", displayTicketID(t), t.Status, t.Priority, t.Department.Name, t.Subject)
 	}
@@ -155,6 +182,16 @@ func runTicketsDepartments(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to list departments: %w", err)
 	}
+
+	if ticketJSONFlag {
+		data, err := json.MarshalIndent(departments, "", "  ")
+		if err != nil {
+			return fmt.Errorf("failed to marshal JSON: %w", err)
+		}
+		fmt.Println(string(data))
+		return nil
+	}
+
 	for _, d := range departments {
 		fmt.Printf("%d\t%s\t%s\n", d.ID, d.Name, d.Description)
 	}
