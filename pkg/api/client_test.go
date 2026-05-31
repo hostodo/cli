@@ -201,7 +201,7 @@ func TestListPlans_FiltersDisabledAndOutOfStock(t *testing.T) {
 	srv := httptest.NewServer(authMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 200, PlansResponse{Results: []Plan{
 			{ID: 1, Name: "EPYC-1G", Enabled: true, OutOfStock: false},
-			{ID: 2, Name: "EPYC-2G", Enabled: true, OutOfStock: true},  // filtered: out of stock
+			{ID: 2, Name: "EPYC-2G", Enabled: true, OutOfStock: true},   // filtered: out of stock
 			{ID: 3, Name: "EPYC-4G", Enabled: false, OutOfStock: false}, // filtered: disabled
 			{ID: 4, Name: "EPYC-8G", Enabled: true, OutOfStock: false},
 		}})
@@ -499,6 +499,114 @@ func TestGetInstance_DirectFormat(t *testing.T) {
 	}
 	if inst.InstanceID != "ins::xyz789" {
 		t.Errorf("wrong instance ID: %s", inst.InstanceID)
+	}
+}
+
+// -------------------------------------------------------------------
+// Helpdesk tickets
+// -------------------------------------------------------------------
+
+func TestListDepartments_ReturnsEnabledDepartments(t *testing.T) {
+	injectToken(t)
+
+	srv := httptest.NewServer(authMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet || r.URL.Path != "/v1/helpdesk/departments/" {
+			http.NotFound(w, r)
+			return
+		}
+		writeJSON(w, 200, DepartmentsResponse{Results: []Department{
+			{ID: 1, Name: "Technical Support", Description: "VPS and server-related issues", Enabled: true},
+			{ID: 2, Name: "Billing Support", Description: "Payment and billing inquiries", Enabled: true},
+		}})
+	}))
+	defer srv.Close()
+
+	client := newTestClient(t, srv.URL)
+	departments, err := client.ListDepartments()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(departments) != 2 {
+		t.Fatalf("expected 2 departments, got %d", len(departments))
+	}
+	if departments[0].Name != "Technical Support" {
+		t.Errorf("wrong first department: %+v", departments[0])
+	}
+}
+
+func TestCreateTicket_SendsHelpdeskPayload(t *testing.T) {
+	injectToken(t)
+
+	var captured TicketCreateRequest
+	srv := httptest.NewServer(authMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/v1/helpdesk/tickets/" {
+			http.NotFound(w, r)
+			return
+		}
+		json.NewDecoder(r.Body).Decode(&captured)
+		writeJSON(w, 201, Ticket{ID: 123, TicketID: "TCK-123", Subject: captured.Subject, Content: captured.Content, Status: "open", Priority: captured.Priority})
+	}))
+	defer srv.Close()
+
+	client := newTestClient(t, srv.URL)
+	ticket, err := client.CreateTicket(TicketCreateRequest{Subject: "Need rDNS", Content: "Please set rDNS", DepartmentID: 1, Priority: "medium"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if captured.Subject != "Need rDNS" || captured.Content != "Please set rDNS" || captured.DepartmentID != 1 || captured.Priority != "medium" {
+		t.Errorf("wrong request body: %+v", captured)
+	}
+	if ticket.TicketID != "TCK-123" || ticket.Status != "open" {
+		t.Errorf("wrong ticket response: %+v", ticket)
+	}
+}
+
+func TestReplyToTicket_PostsReplyToTicketEndpoint(t *testing.T) {
+	injectToken(t)
+
+	var captured TicketReplyRequest
+	srv := httptest.NewServer(authMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/v1/helpdesk/tickets/TCK-123/reply/" {
+			http.NotFound(w, r)
+			return
+		}
+		json.NewDecoder(r.Body).Decode(&captured)
+		writeJSON(w, 201, TicketReply{ID: 456, Content: captured.Content, InternalNote: captured.InternalNote})
+	}))
+	defer srv.Close()
+
+	client := newTestClient(t, srv.URL)
+	reply, err := client.ReplyToTicket("TCK-123", TicketReplyRequest{Content: "Thanks", InternalNote: false})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if captured.Content != "Thanks" || captured.InternalNote {
+		t.Errorf("wrong reply body: %+v", captured)
+	}
+	if reply.ID != 456 || reply.Content != "Thanks" {
+		t.Errorf("wrong reply response: %+v", reply)
+	}
+}
+
+func TestGetTicket_UsesEscapedTicketID(t *testing.T) {
+	injectToken(t)
+
+	srv := httptest.NewServer(authMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet || r.URL.Path != "/v1/helpdesk/tickets/TCK-123/" {
+			http.NotFound(w, r)
+			return
+		}
+		writeJSON(w, 200, Ticket{ID: 123, TicketID: "TCK-123", Subject: "Need help", Replies: []TicketReply{{ID: 1, Content: "Reply"}}})
+	}))
+	defer srv.Close()
+
+	client := newTestClient(t, srv.URL)
+	ticket, err := client.GetTicket("TCK-123")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if ticket.TicketID != "TCK-123" || len(ticket.Replies) != 1 {
+		t.Errorf("wrong ticket response: %+v", ticket)
 	}
 }
 
