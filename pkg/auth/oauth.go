@@ -85,6 +85,11 @@ func (c *DeviceFlowClient) InitiateDeviceFlow(deviceName, deviceID string) (*Dev
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", "odo-cli")
+	req.Header.Set("X-Hostodo-Client", "cli")
+	if deviceID != "" {
+		req.Header.Set("X-Hostodo-Device-Id", deviceID)
+	}
 
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
@@ -135,6 +140,8 @@ func (c *DeviceFlowClient) PollForToken(ctx context.Context, deviceCode string, 
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", "odo-cli")
+	req.Header.Set("X-Hostodo-Client", "cli")
 
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {

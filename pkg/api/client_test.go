@@ -44,6 +44,31 @@ func authMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
+func TestClient_SendsCLIAttributionHeaders(t *testing.T) {
+	injectToken(t)
+
+	deviceID := "11111111-1111-1111-1111-111111111111"
+	srv := httptest.NewServer(authMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("X-Hostodo-Client") != "cli" {
+			t.Errorf("expected X-Hostodo-Client=cli, got %q", r.Header.Get("X-Hostodo-Client"))
+		}
+		if r.Header.Get("X-Hostodo-Device-Id") != deviceID {
+			t.Errorf("expected device id header, got %q", r.Header.Get("X-Hostodo-Device-Id"))
+		}
+		if !strings.Contains(r.Header.Get("User-Agent"), "odo-cli") {
+			t.Errorf("expected odo-cli user agent, got %q", r.Header.Get("User-Agent"))
+		}
+		writeJSON(w, 200, PlansResponse{Results: []Plan{}})
+	}))
+	defer srv.Close()
+
+	client := newTestClient(t, srv.URL)
+	client.config.DeviceID = deviceID
+	if _, err := client.ListPlans(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 // injectToken sets HOME to a temp dir and writes a fake token file so
 // auth.GetToken() succeeds without a real OS keychain.
 func injectToken(t *testing.T) {
