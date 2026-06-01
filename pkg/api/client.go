@@ -87,6 +87,11 @@ func (c *Client) doRequest(method, path string, body interface{}) (*http.Respons
 	// Set headers
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", "odo-cli")
+	req.Header.Set("X-Hostodo-Client", "cli")
+	if c.config != nil && c.config.DeviceID != "" {
+		req.Header.Set("X-Hostodo-Device-Id", c.config.DeviceID)
+	}
 
 	// Use Bearer token from keychain
 	req.Header.Set("Authorization", "Bearer "+token)
